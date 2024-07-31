@@ -1,0 +1,6 @@
+@bibliotecaApiCsharp_HostAddress = http://localhost:5048
+
+GET {{bibliotecaApiCsharp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
