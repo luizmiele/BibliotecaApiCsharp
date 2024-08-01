@@ -2,10 +2,8 @@ using bibliotecaApiCsharp.Application.Services;
 using bibliotecaApiCsharp.Domain.Repositories;
 using bibliotecaApiCsharp.Domain.Services;
 using bibliotecaApiCsharp.Infrastructure.ConexaoDB;
-using bibliotecaApiCsharp.Infrastructure.Config;
 using bibliotecaApiCsharp.Infrastructure.Messaging;
 using bibliotecaApiCsharp.Infrastructure.Repositories;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,18 +24,16 @@ builder.Services.AddSingleton<DbConnection>(sp =>
 builder.Services.AddScoped<ILivroRepository, LivroRepository>();
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IEmprestimoRepository, EmprestimoRepository>();
+builder.Services.AddScoped<IAddLivroProducer, AddLivroProducer>();
 
 // Register services
 builder.Services.AddScoped<ILivroService, LivroApplicationService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioApplicationService>();
 builder.Services.AddScoped<IEmprestimoService, EmprestimoApplicationService>();
 
-// Register RabbitMQ configuration and services
-builder.Services.Configure<RabbitMQConfig>(builder.Configuration.GetSection("RabbitMQConfig"));
-
-// Register RabbitMQ consumers
-new AddLivroReceiver();
-
+// Register RabbitMQ receiver and background service
+builder.Services.AddSingleton<AddLivroReceiver>();
+builder.Services.AddHostedService<RabbitMqBackgroundService>();
 
 var app = builder.Build();
 

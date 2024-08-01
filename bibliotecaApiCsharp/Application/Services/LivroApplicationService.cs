@@ -2,8 +2,7 @@ using bibliotecaApiCsharp.Application.DTO;
 using bibliotecaApiCsharp.Domain.Entities;
 using bibliotecaApiCsharp.Domain.Repositories;
 using bibliotecaApiCsharp.Domain.Services;
-using bibliotecaApiCsharp.Infrastructure.Config;
-using bibliotecaApiCsharp.Infrastructure.Messaging;
+using bibliotecaApiCsharp.Infrastructure.Repositories;
 using Microsoft.Extensions.Options;
 
 namespace bibliotecaApiCsharp.Application.Services;
@@ -11,18 +10,18 @@ namespace bibliotecaApiCsharp.Application.Services;
 public class LivroApplicationService : ILivroService
 {
     private readonly ILivroRepository _livroRepository;
-    private readonly AddLivroProducer _addLivroProducer;
-    public LivroApplicationService(ILivroRepository livroRepository, IEmprestimoRepository emprestimoRepository, IUsuarioRepository usuarioRepository)
+    private readonly IAddLivroProducer _addLivroProducer;
+    private readonly IEmprestimoRepository _emprestimoRepository;
+    private readonly IUsuarioRepository _usuarioRepository;
+    public LivroApplicationService(ILivroRepository livroRepository, IEmprestimoRepository emprestimoRepository, IUsuarioRepository usuarioRepository, IAddLivroProducer addLivroProducer)
     {
         _livroRepository = livroRepository;
         _emprestimoRepository = emprestimoRepository;
         _usuarioRepository = usuarioRepository;
-        _addLivroProducer = new AddLivroProducer();
+        _addLivroProducer = addLivroProducer;
     }
     
-    private readonly IEmprestimoRepository _emprestimoRepository;
-    private readonly IUsuarioRepository _usuarioRepository;
-    private readonly RabbitMQConfig _config;
+
     
     
     public async Task AddLivroAsync(LivroCreateDTO livroCreateDTO)
@@ -30,7 +29,7 @@ public class LivroApplicationService : ILivroService
         var livro = new Livro(livroCreateDTO);
         livro.EstaDisponivel = true;
         await _livroRepository.AddLivroAsync(livroCreateDTO);
-        _addLivroProducer.sendMsg(livroCreateDTO.Titulo);
+        _addLivroProducer.SendMsg(livroCreateDTO.Titulo);
     }
 
     public async Task<IEnumerable<LivroDTO>> GetLivrosAsync()
@@ -58,12 +57,12 @@ public class LivroApplicationService : ILivroService
         Emprestimo emprestimo = new Emprestimo(livroId, usuarioId);
         int emprestimoId = await _emprestimoRepository.AddEmprestimoAsync(emprestimo);
         emprestimo.EmprestimoId = emprestimoId;
-        Console.WriteLine("emprestimoId --------------------"+  emprestimo.EmprestimoId );
+        
         
         livro.EstaDisponivel = false;
         livro.EmprestimoId = emprestimo.EmprestimoId;
-        await _livroRepository.UpdateLivroAsync(livro);
-        //_messageProducer.SendMessage(new { Action = "BorrowBook", Empresta = emprestaLivro }, _config.EmprestaLivroQueue);
+        _livroRepository.UpdateLivroAsync(livro);
+        _addLivroProducer.SendLivroEmprestado(livro.Titulo);
         return "Livro foi emprestado para: " + usuario.Nome;
     }
 
@@ -91,8 +90,7 @@ public class LivroApplicationService : ILivroService
             await _emprestimoRepository.UpdateEmprestimoAsync(emprestimoDTO, livroId);
         }
         Console.WriteLine(emprestimoDTO.Status);
-        
-        //_messageProducer.SendMessage(new { Action = "ReturnBook", Return = devolveLivro }, _config.DevolveLivroQueue);
+        _addLivroProducer.SendLivroDevolvido(livro.Titulo);
         return "Livro"  + emprestimoDTO.Status;
     }
 }

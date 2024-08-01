@@ -1,38 +1,55 @@
-
-
 using System.Text;
-using bibliotecaApiCsharp.Application.DTO;
-using bibliotecaApiCsharp.Infrastructure.Config;
-using Microsoft.Extensions.Options;
-
+using bibliotecaApiCsharp.Infrastructure.Repositories;
 using RabbitMQ.Client;
-
 
 namespace bibliotecaApiCsharp.Infrastructure.Messaging;
 
-public class AddLivroProducer
+public class AddLivroProducer : IAddLivroProducer
 {
-    
+    private readonly IConnection _connection;
+    private readonly IModel _channel;
+
     public AddLivroProducer()
     {
+        var factory = new ConnectionFactory { HostName = "localhost" };
+        _connection = factory.CreateConnection();
+        _channel = _connection.CreateModel();
     }
 
-    public void sendMsg(string titulo)
+    public void SendMsg(string message)
     {
-        var factory = new ConnectionFactory { HostName = "localhost" };
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
-        
-        channel.QueueDeclare(queue: "livro-criado",
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null);
-        
-        var body = Encoding.UTF8.GetBytes(titulo);
-        channel.BasicPublish(exchange: string.Empty,
+        var body = Encoding.UTF8.GetBytes(message);
+        _channel.BasicPublish(exchange: "",
             routingKey: "livro-criado",
             basicProperties: null,
             body: body);
+        Console.WriteLine($"[x] Enviado livro criado: {message}");
+    }
+
+    public void SendLivroEmprestado(string message)
+    {
+        var body = Encoding.UTF8.GetBytes(message);
+        _channel.BasicPublish(exchange: "",
+            routingKey: "livro-emprestado",
+            basicProperties: null,
+            body: body);
+        Console.WriteLine($"[x] Enviado livro emprestado: {message}");
+    }
+
+    public void SendLivroDevolvido(string message)
+    {
+        var body = Encoding.UTF8.GetBytes(message);
+        _channel.BasicPublish(exchange: "",
+            routingKey: "livro-devolvido",
+            basicProperties: null,
+            body: body);
+        Console.WriteLine($"[x] Enviado livro devolvido: {message}");
+    }
+
+    public void Dispose()
+    {
+        _channel?.Close();
+        _connection?.Close();
     }
 }
+
