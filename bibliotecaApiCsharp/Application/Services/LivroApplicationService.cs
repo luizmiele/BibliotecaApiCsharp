@@ -91,6 +91,6 @@ public class LivroApplicationService : ILivroService
         }
         Console.WriteLine(emprestimoDTO.Status);
         _addLivroProducer.SendLivroDevolvido(livro.Titulo);
-        return "Livro"  + emprestimoDTO.Status;
+        return "Livro "  + emprestimoDTO.Status;
     }
 }
